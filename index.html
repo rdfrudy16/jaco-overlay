@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Jaco Live Chat Overlay</title>
+
   <style>
     html, body {
       margin: 0;
@@ -17,14 +18,14 @@
       position: fixed;
       top: 10px;
       right: 10px;
-      max-width: 100%;
-      max-height: 100%;
       display: flex;
-      flex-direction: column; /* newest at the bottom */
+      flex-direction: column;
       align-items: flex-end;
       gap: 6px;
       pointer-events: none;
       user-select: none;
+      max-width: 100%;
+      max-height: 100%;
     }
 
     .chat-bubble {
@@ -34,16 +35,10 @@
       border-radius: 18px;
       max-width: 80vw;
       display: flex;
-      flex-direction: row;
-      align-items: center;
       gap: 10px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      justify-content: flex-start;
-      text-align: left;
-      pointer-events: auto;
-      user-select: text;
       box-shadow: 0 0 5px rgba(0,0,0,0.15);
       font-size: 14px;
     }
@@ -51,15 +46,17 @@
     .msg {
       direction: ltr;
       unicode-bidi: plaintext;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .user {
       font-weight: bold;
-      direction: ltr;
       white-space: nowrap;
     }
   </style>
 </head>
+
 <body>
 
 <div id="chat">Waiting for chat...</div>
@@ -67,71 +64,73 @@
 <script>
   const chatContainer = document.getElementById('chat');
 
-  // Create WebSocket connection
-  const ws = new WebSocket('ws://localhost:12345');
+  const WS_URL = "wss://jaco-server.onrender.com";
 
-  console.log('[Overlay] WebSocket connecting...');
+  let ws;
 
-  ws.addEventListener('open', () => {
-    console.log('[Overlay] WebSocket connected, readyState:', ws.readyState);
-  });
+  function connect() {
+    ws = new WebSocket(WS_URL);
 
-  ws.addEventListener('message', (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      if (data.type === 'JACO_CHAT_UPDATE' && data.messages) {
-        updateChat(data.messages);
+    console.log("[Overlay] connecting...");
+
+    ws.onopen = () => {
+      console.log("[Overlay] connected");
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+
+        if (data.type === "JACO_CHAT_UPDATE" && data.messages) {
+          updateChat(data.messages);
+        }
+
+      } catch (e) {
+        console.error("[Overlay] bad message", e);
       }
-    } catch (e) {
-      console.error('[Overlay] Invalid WebSocket message', e);
-    }
-  });
+    };
 
-  ws.addEventListener('close', () => {
-    console.log('[Overlay] WebSocket closed');
-  });
+    ws.onclose = () => {
+      console.log("[Overlay] disconnected, retrying...");
+      setTimeout(connect, 2000);
+    };
 
-  ws.addEventListener('error', (e) => {
-    console.error('[Overlay] WebSocket error:', e);
-  });
+    ws.onerror = () => {
+      ws.close();
+    };
+  }
 
-  // Optional fallback for postMessage from parent
-  window.addEventListener('message', (event) => {
-    if (!event.data || event.data.type !== 'JACO_CHAT_UPDATE') return;
-    updateChat(event.data.messages);
-  });
+  connect();
 
   function updateChat(messages) {
     if (!messages || messages.length === 0) {
-      chatContainer.textContent = 'Waiting for chat...';
+      chatContainer.textContent = "Waiting for chat...";
       return;
     }
 
-    chatContainer.innerHTML = '';
+    chatContainer.innerHTML = "";
 
-    // Get the last 3 messages
     const lastMessages = messages.slice(-3);
 
-    // Append messages oldest to newest
-    lastMessages.forEach(msg => {
-      const bubble = document.createElement('div');
-      bubble.className = 'chat-bubble';
+    lastMessages.forEach((msg) => {
+      const bubble = document.createElement("div");
+      bubble.className = "chat-bubble";
 
-      // Parse username as last word, message is rest
-      const parts = msg.trim().split(' ');
+      const parts = msg.trim().split(" ");
       const username = parts.pop();
-      const messageText = parts.join(' ');
+      const messageText = parts.join(" ");
 
-      const spanMsg = document.createElement('span');
-      spanMsg.className = 'msg';
-      spanMsg.textContent = messageText;
+      const msgSpan = document.createElement("span");
+      msgSpan.className = "msg";
+      msgSpan.textContent = messageText;
 
-      const spanUser = document.createElement('span');
-      spanUser.className = 'user';
-      spanUser.textContent = username;
+      const userSpan = document.createElement("span");
+      userSpan.className = "user";
+      userSpan.textContent = username;
 
-      bubble.appendChild(spanMsg);
-      bubble.appendChild(spanUser);
+      bubble.appendChild(msgSpan);
+      bubble.appendChild(userSpan);
+
       chatContainer.appendChild(bubble);
     });
   }
