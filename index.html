@@ -59,7 +59,7 @@
 
 <body>
 
-<div id="chat">Waiting for chat...</div>
+<div id="chat">Connecting...</div>
 
 <script>
   const chatContainer = document.getElementById('chat');
@@ -75,15 +75,18 @@
 
     ws.onopen = () => {
       console.log("[Overlay] connected");
+      chatContainer.innerHTML = "";
     };
 
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
 
-        if (data.type === "JACO_CHAT_UPDATE" && data.messages) {
-          updateChat(data.messages);
-        }
+        // EXPECTED FORMAT:
+        // { user: "name", msg: "text" }
+        if (!data.user || !data.msg) return;
+
+        addMessage(data.user, data.msg);
 
       } catch (e) {
         console.error("[Overlay] bad message", e);
@@ -102,37 +105,28 @@
 
   connect();
 
-  function updateChat(messages) {
-    if (!messages || messages.length === 0) {
-      chatContainer.textContent = "Waiting for chat...";
-      return;
+  function addMessage(user, msg) {
+    const bubble = document.createElement("div");
+    bubble.className = "chat-bubble";
+
+    const msgSpan = document.createElement("span");
+    msgSpan.className = "msg";
+    msgSpan.textContent = msg;
+
+    const userSpan = document.createElement("span");
+    userSpan.className = "user";
+    userSpan.textContent = user;
+
+    bubble.appendChild(msgSpan);
+    bubble.appendChild(userSpan);
+
+    chatContainer.appendChild(bubble);
+
+    // keep only last 10 messages
+    const all = chatContainer.querySelectorAll(".chat-bubble");
+    if (all.length > 10) {
+      all[0].remove();
     }
-
-    chatContainer.innerHTML = "";
-
-    const lastMessages = messages.slice(-10);
-
-    lastMessages.forEach((msg) => {
-      const bubble = document.createElement("div");
-      bubble.className = "chat-bubble";
-
-      const parts = msg.trim().split(" ");
-      const username = parts.pop();
-      const messageText = parts.join(" ");
-
-      const msgSpan = document.createElement("span");
-      msgSpan.className = "msg";
-      msgSpan.textContent = messageText;
-
-      const userSpan = document.createElement("span");
-      userSpan.className = "user";
-      userSpan.textContent = username;
-
-      bubble.appendChild(msgSpan);
-      bubble.appendChild(userSpan);
-
-      chatContainer.appendChild(bubble);
-    });
   }
 </script>
 
