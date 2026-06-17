@@ -1,52 +1,69 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Jaco Overlay</title>
+<meta charset="UTF-8" />
+<title>Jaco Overlay</title>
 
-  <style>
-    html, body {
-      margin: 0;
-      background: transparent;
-      overflow: hidden;
-      font-family: Arial;
-    }
+<style>
+  html, body {
+    margin: 0;
+    background: transparent;
+    overflow: hidden;
+    font-family: Arial;
+  }
 
-    #chat {
-      position: fixed;
-      top: 10px;
-      right: 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      max-width: 90vw;
-    }
+  #chat {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
 
-    .bubble {
-      padding: 8px 12px;
-      border-radius: 16px;
-      font-size: 14px;
-      color: #000;
-      background: rgba(255,255,255,0.85);
-      display: flex;
-      gap: 8px;
-      max-width: 80vw;
-      word-break: break-word;
-    }
+  /* MAIN CARD */
+  .card {
+    display: flex;
+    flex-direction: row-reverse; /* RTL feel */
+    width: 340px;
+    background: rgba(255,255,255,0.9);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+  }
 
-    .tiktok {
-      border-left: 4px solid #ff2d55;
-    }
+  /* FULL HEIGHT LOGO BAR */
+  .logo {
+    width: 60px;
+    height: 100%;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: #ddd;
+  }
 
-    .jaco {
-      border-left: 4px solid #ffd000;
-    }
+  /* TEXT AREA */
+  .content {
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    text-align: right;
+    direction: rtl;
+    justify-content: center;
+    flex: 1;
+  }
 
-    .user {
-      font-weight: bold;
-      white-space: nowrap;
-    }
-  </style>
+  .name {
+    font-weight: bold;
+    font-size: 13px;
+    margin-bottom: 4px;
+  }
+
+  .msg {
+    font-size: 13px;
+    opacity: 0.85;
+    word-break: break-word;
+  }
+</style>
 </head>
 
 <body>
@@ -54,42 +71,60 @@
 <div id="chat"></div>
 
 <script>
-  const WS_URL = "wss://jaco-server.onrender.com";
-  const chat = document.getElementById("chat");
+const WS_URL = "wss://jaco-server.onrender.com";
+const chat = document.getElementById("chat");
 
-  const ws = new WebSocket(WS_URL);
+const ws = new WebSocket(WS_URL);
 
-  ws.onopen = () => {
-    console.log("connected");
-  };
+ws.onopen = () => {
+  console.log("Overlay connected");
+};
 
-  ws.onmessage = (event) => {
-    const data = JSON.parse(event.data);
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  if (data.type !== "chat") return;
 
-    if (data.type !== "chat") return;
+  addCard(data);
+};
 
-    addMessage(data);
-  };
+function addCard(data) {
+  const card = document.createElement("div");
+  card.className = "card";
 
-  function addMessage(data) {
-    const div = document.createElement("div");
+  const logo = document.createElement("img");
+  logo.className = "logo";
 
-    div.className = "bubble " + (data.source === "tiktok" ? "tiktok" : "jaco");
-
-    const label = data.source === "tiktok" ? "🎵" : "🟡";
-
-    div.innerHTML = `
-      <span class="msg">${label} ${data.msg}</span>
-      <span class="user">${data.user}</span>
-    `;
-
-    chat.appendChild(div);
-
-    // keep last 15 messages
-    while (chat.children.length > 15) {
-      chat.removeChild(chat.firstChild);
-    }
+  // LOCAL LOGOS
+  if (data.source === "tiktok") {
+    logo.src = "./assets/tiktok.png";
+  } else {
+    logo.src = "./assets/jaco.png";
   }
+
+  const content = document.createElement("div");
+  content.className = "content";
+
+  const name = document.createElement("div");
+  name.className = "name";
+  name.textContent = data.user;
+
+  const msg = document.createElement("div");
+  msg.className = "msg";
+  msg.textContent = data.msg;
+
+  content.appendChild(name);
+  content.appendChild(msg);
+
+  card.appendChild(logo);
+  card.appendChild(content);
+
+  chat.appendChild(card);
+
+  // keep last 15 messages
+  while (chat.children.length > 15) {
+    chat.removeChild(chat.firstChild);
+  }
+}
 </script>
 
 </body>
