@@ -1,17 +1,15 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Jaco Live Chat Overlay</title>
+  <title>Jaco Overlay</title>
 
   <style>
     html, body {
       margin: 0;
-      padding: 0;
       background: transparent;
       overflow: hidden;
-      font-family: Arial, sans-serif;
+      font-family: Arial;
     }
 
     #chat {
@@ -20,34 +18,28 @@
       right: 10px;
       display: flex;
       flex-direction: column;
-      align-items: flex-end;
       gap: 6px;
-      pointer-events: none;
-      user-select: none;
-      max-width: 100%;
-      max-height: 100%;
+      max-width: 90vw;
     }
 
-    .chat-bubble {
-      background: rgba(255, 255, 255, 0.85);
-      color: black;
-      padding: 8px 14px;
-      border-radius: 18px;
-      max-width: 80vw;
-      display: flex;
-      gap: 10px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      box-shadow: 0 0 5px rgba(0,0,0,0.15);
+    .bubble {
+      padding: 8px 12px;
+      border-radius: 16px;
       font-size: 14px;
+      color: #000;
+      background: rgba(255,255,255,0.85);
+      display: flex;
+      gap: 8px;
+      max-width: 80vw;
+      word-break: break-word;
     }
 
-    .msg {
-      direction: ltr;
-      unicode-bidi: plaintext;
-      overflow: hidden;
-      text-overflow: ellipsis;
+    .tiktok {
+      border-left: 4px solid #ff2d55;
+    }
+
+    .jaco {
+      border-left: 4px solid #ffd000;
     }
 
     .user {
@@ -59,73 +51,43 @@
 
 <body>
 
-<div id="chat">Connecting...</div>
+<div id="chat"></div>
 
 <script>
-  const chatContainer = document.getElementById('chat');
-
   const WS_URL = "wss://jaco-server.onrender.com";
+  const chat = document.getElementById("chat");
 
-  let ws;
+  const ws = new WebSocket(WS_URL);
 
-  function connect() {
-    ws = new WebSocket(WS_URL);
+  ws.onopen = () => {
+    console.log("connected");
+  };
 
-    console.log("[Overlay] connecting...");
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
 
-    ws.onopen = () => {
-      console.log("[Overlay] connected");
-      chatContainer.innerHTML = "";
-    };
+    if (data.type !== "chat") return;
 
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
+    addMessage(data);
+  };
 
-        // EXPECTED FORMAT:
-        // { user: "name", msg: "text" }
-        if (!data.user || !data.msg) return;
+  function addMessage(data) {
+    const div = document.createElement("div");
 
-        addMessage(data.user, data.msg);
+    div.className = "bubble " + (data.source === "tiktok" ? "tiktok" : "jaco");
 
-      } catch (e) {
-        console.error("[Overlay] bad message", e);
-      }
-    };
+    const label = data.source === "tiktok" ? "🎵" : "🟡";
 
-    ws.onclose = () => {
-      console.log("[Overlay] disconnected, retrying...");
-      setTimeout(connect, 2000);
-    };
+    div.innerHTML = `
+      <span class="msg">${label} ${data.msg}</span>
+      <span class="user">${data.user}</span>
+    `;
 
-    ws.onerror = () => {
-      ws.close();
-    };
-  }
+    chat.appendChild(div);
 
-  connect();
-
-  function addMessage(user, msg) {
-    const bubble = document.createElement("div");
-    bubble.className = "chat-bubble";
-
-    const msgSpan = document.createElement("span");
-    msgSpan.className = "msg";
-    msgSpan.textContent = msg;
-
-    const userSpan = document.createElement("span");
-    userSpan.className = "user";
-    userSpan.textContent = user;
-
-    bubble.appendChild(msgSpan);
-    bubble.appendChild(userSpan);
-
-    chatContainer.appendChild(bubble);
-
-    // keep only last 10 messages
-    const all = chatContainer.querySelectorAll(".chat-bubble");
-    if (all.length > 10) {
-      all[0].remove();
+    // keep last 15 messages
+    while (chat.children.length > 15) {
+      chat.removeChild(chat.firstChild);
     }
   }
 </script>
