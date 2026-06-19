@@ -102,9 +102,21 @@ function addMessage(data) {
   const msg = document.createElement("div");
   msg.className = "msg";
 
-  // CLEAN SAFE DISPLAY
-  name.textContent = String(data.user || "unknown").trim();
-  msg.textContent = String(data.msg || "").trim();
+  // 🧠 CLEAN FIX: split JACO "username message"
+  let user = data.user || "unknown";
+  let message = data.msg || "";
+
+  if (data.source === "jaco") {
+    const parts = message.split(" ");
+
+    if (parts.length > 1) {
+      user = parts[0];
+      message = parts.slice(1).join(" ");
+    }
+  }
+
+  name.textContent = user.trim();
+  msg.textContent = message.trim();
 
   content.appendChild(name);
   content.appendChild(msg);
